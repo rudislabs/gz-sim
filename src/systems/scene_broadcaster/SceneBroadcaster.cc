@@ -58,6 +58,7 @@
 #include "gz/sim/components/Sensor.hh"
 #include "gz/sim/components/Static.hh"
 #include "gz/sim/components/ThermalCamera.hh"
+#include "gz/sim/components/Uwb.hh"
 #include "gz/sim/components/Visual.hh"
 #include "gz/sim/components/World.hh"
 #include "gz/sim/Conversions.hh"
@@ -69,6 +70,7 @@
 #include <sdf/Noise.hh>
 #include <sdf/Scene.hh>
 #include <sdf/Sensor.hh>
+#include <sdf/Uwb.hh>
 
 using namespace std::chrono_literals;
 
@@ -1021,6 +1023,13 @@ void SceneBroadcasterPrivate::SceneGraphAddEntities(
           set(
               imuMsg->mutable_angular_velocity()->mutable_z_noise(),
               imu->AngularVelocityZNoise());
+        }
+        auto uwbComp = _manager.Component<components::Uwb>(_entity);
+        if (uwbComp)
+        {
+          sensorMsg->set_type("uwb");
+          msgs::UWBSensor * uwbMsg = sensorMsg->mutable_uwb();
+          const auto * uwb = uwbComp->Data().UwbSensor();
         }
         auto laserRetroComp = _manager.Component<
           components::LaserRetro>(_entity);

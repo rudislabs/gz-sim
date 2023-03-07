@@ -57,6 +57,7 @@
 #include "gz/sim/components/Static.hh"
 #include "gz/sim/components/ThermalCamera.hh"
 #include "gz/sim/components/ThreadPitch.hh"
+#include "gz/sim/components/Uwb.hh"
 #include "gz/sim/components/WindMode.hh"
 #include "gz/sim/components/World.hh"
 
@@ -747,6 +748,14 @@ namespace sdf_generator
     if (imuComp)
     {
       const sdf::Sensor &sensor = imuComp->Data();
+      _elem->Copy(sensor.ToElement());
+      return updateSensorNameAndPose();
+    }
+    // uwb
+    auto uwbComp = _ecm.Component<components::Uwb>(_entity);
+    if (uwbComp)
+    {
+      const sdf::Sensor &sensor = uwbComp->Data();
       _elem->Copy(sensor.ToElement());
       return updateSensorNameAndPose();
     }

@@ -6,6 +6,7 @@
 
     Altimeter: gz topic -e -t /altimeter
     Imu: gz topic -e -t /imu
+    Uwb: gz topic -e -t /uwb
     Magnetometer: gz topic -e -t /magnetometer
     Air pressure: gz topic -e -t /air_pressure
 -->
@@ -30,6 +31,10 @@
     <plugin
       filename="gz-sim-imu-system"
       name="gz::sim::systems::Imu">
+    </plugin>
+    <plugin
+      filename="gz-sim-uwb-system"
+      name="gz::sim::systems::Uwb">
     </plugin>
     <plugin
       filename="gz-sim-magnetometer-system"
@@ -172,6 +177,13 @@
           <update_rate>100</update_rate>
           <visualize>true</visualize>
           <topic>imu</topic>
+          <enable_metrics>true</enable_metrics>
+        </sensor>
+        <sensor name="uwb" type="uwb">
+          <always_on>1</always_on>
+          <update_rate>100</update_rate>
+          <visualize>true</visualize>
+          <topic>uwb</topic>
           <enable_metrics>true</enable_metrics>
         </sensor>
         <sensor name="magnetometer" type="magnetometer">
