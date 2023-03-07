@@ -87,6 +87,7 @@
 #include "gz/sim/components/ThermalCamera.hh"
 #include "gz/sim/components/ThreadPitch.hh"
 #include "gz/sim/components/Transparency.hh"
+#include "gz/sim/components/Uwb.hh"
 #include "gz/sim/components/Visibility.hh"
 #include "gz/sim/components/Visual.hh"
 #include "gz/sim/components/WideAngleCamera.hh"
@@ -962,7 +963,7 @@ Entity SdfEntityCreator::CreateEntities(const sdf::Sensor *_sensor)
     this->dataPtr->ecm->CreateComponent(sensorEntity,
         components::WorldPose(math::Pose3d::Zero));
   }
-  else if (_sensor->Type() == sdf::SensorType::AIR_SPEED)
+/*   else if (_sensor->Type() == sdf::SensorType::AIR_SPEED)
   {
     this->dataPtr->ecm->CreateComponent(sensorEntity,
         components::AirSpeedSensor(*_sensor));
@@ -974,7 +975,7 @@ Entity SdfEntityCreator::CreateEntities(const sdf::Sensor *_sensor)
         components::WorldLinearVelocity(math::Vector3d::Zero));
     this->dataPtr->ecm->CreateComponent(sensorEntity,
         components::WorldAngularVelocity(math::Vector3d::Zero));
-  }
+  } */
   else if (_sensor->Type() == sdf::SensorType::ALTIMETER)
   {
     this->dataPtr->ecm->CreateComponent(sensorEntity,
@@ -1008,6 +1009,15 @@ Entity SdfEntityCreator::CreateEntities(const sdf::Sensor *_sensor)
             components::AngularVelocity(math::Vector3d::Zero));
     this->dataPtr->ecm->CreateComponent(sensorEntity,
             components::LinearAcceleration(math::Vector3d::Zero));
+  }
+  else if (_sensor->Type() == sdf::SensorType::UWB)
+  {
+    this->dataPtr->ecm->CreateComponent(sensorEntity,
+            components::Uwb(*_sensor));
+
+    // create components to be filled by physics
+    this->dataPtr->ecm->CreateComponent(sensorEntity,
+            components::WorldPose(math::Pose3d::Zero));
   }
   else if (_sensor->Type() == sdf::SensorType::FORCE_TORQUE)
   {

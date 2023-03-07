@@ -133,13 +133,14 @@ gz_find_package(gz-sensors7 REQUIRED VERSION 7.1
   COMPONENTS
     # non-rendering
     air_pressure
-    air_speed
+    # air_speed
     altimeter
     imu
     force_torque
     logical_camera
     magnetometer
     navsat
+    uwb
 
     # rendering
     rendering

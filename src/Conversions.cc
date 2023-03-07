@@ -35,6 +35,7 @@
 #include <gz/msgs/plugin.pb.h>
 #include <gz/msgs/spheregeom.pb.h>
 #include <gz/msgs/Utility.hh>
+#include <gz/msgs/uwb_sensor.pb.h>
 
 #include <gz/math/Angle.hh>
 #include <gz/math/AxisAlignedBox.hh>
@@ -46,7 +47,7 @@
 #include <sdf/Actor.hh>
 #include <sdf/Atmosphere.hh>
 #include <sdf/AirPressure.hh>
-#include <sdf/AirSpeed.hh>
+//#include <sdf/AirSpeed.hh>
 #include <sdf/Altimeter.hh>
 #include <sdf/Box.hh>
 #include <sdf/Camera.hh>
@@ -67,6 +68,7 @@
 #include <sdf/Plane.hh>
 #include <sdf/Polyline.hh>
 #include <sdf/Sphere.hh>
+#include <sdf/Uwb.hh>
 
 #include <algorithm>
 #include <string>
@@ -1261,6 +1263,22 @@ msgs::Sensor gz::sim::convert(const sdf::Sensor &_in)
         << "sensor pointer is null.\n";
     }
   }
+  else if (_in.Type() == sdf::SensorType::UWB)
+  {
+    if (_in.UwbSensor())
+    {
+      const sdf::Uwb *sdfUwb = _in.UwbSensor();
+      msgs::UWBSensor *sensor = out.mutable_uwb();
+
+      // sensor->mutable_orientation_ref_frame()->set_localization(
+      //     sdfUwb->Localization());
+    }
+    else
+    {
+      gzerr << "Attempting to convert an UWB SDF sensor, but the "
+        << "sensor pointer is null.\n";
+    }
+  }
   else if (_in.Type() == sdf::SensorType::LIDAR ||
            _in.Type() == sdf::SensorType::GPU_LIDAR)
   {
@@ -1521,6 +1539,25 @@ sdf::Sensor gz::sim::convert(const msgs::Sensor &_in)
     }
 
     out.SetImuSensor(sensor);
+  }
+  else if (out.Type() == sdf::SensorType::UWB)
+  {
+    sdf::Uwb sensor;
+    if (_in.has_uwb())
+    {
+      if (_in.uwb().has_orientation_ref_frame())
+      {
+        sensor.SetLocalization(
+            _in.uwb().orientation_ref_frame().localization());
+      }
+    }
+    else
+    {
+      gzerr << "Attempting to convert an UWB sensor message, but the "
+        << "message does not have an UWB nested message.\n";
+    }
+
+    out.SetUwbSensor(sensor);
   }
   else if (out.Type() == sdf::SensorType::GPU_LIDAR ||
            out.Type() == sdf::SensorType::LIDAR)
