@@ -163,7 +163,7 @@ void JointController::Configure(const Entity &_entity,
 
   if (_sdf->HasElement("use_actuator_msg") &&
     _sdf->Get<bool>("use_actuator_msg"))
-  { 
+  {
     if (_sdf->HasElement("actuatorNumber"))
     {
       this->dataPtr->actuatorNumber =
@@ -172,8 +172,8 @@ void JointController::Configure(const Entity &_entity,
     }
     else
     {
-    gzerr << "Please specify an actuatorNumber" <<
-      "to use Actuator velocity message control." << std::endl;
+      gzerr << "Please specify an actuatorNumber" <<
+        "to use Actuator velocity message control." << std::endl;
     }
   }
 
@@ -234,7 +234,7 @@ void JointController::Configure(const Entity &_entity,
       return;
     }
   }
-  
+
   if (this->dataPtr->useActuatorMsg)
   {
     this->dataPtr->node.Subscribe(topic,
@@ -246,7 +246,7 @@ void JointController::Configure(const Entity &_entity,
   }
   else
   {
-    this->dataPtr->node.Subscribe(topic, 
+    this->dataPtr->node.Subscribe(topic,
       &JointControllerPrivate::OnCmdVel,
       this->dataPtr.get());
 
