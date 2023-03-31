@@ -1270,8 +1270,8 @@ msgs::Sensor gz::sim::convert(const sdf::Sensor &_in)
       const sdf::Uwb *sdfUwb = _in.UwbSensor();
       msgs::UWBSensor *sensor = out.mutable_uwb();
 
-      // sensor->mutable_orientation_ref_frame()->set_localization(
-      //     sdfUwb->Localization());
+      sensor->mutable_orientation_ref_frame()->set_localization(
+          sdfUwb->Localization());
     }
     else
     {

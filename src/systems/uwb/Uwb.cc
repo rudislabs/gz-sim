@@ -24,22 +24,25 @@
 
 #include <gz/plugin/Register.hh>
 
-#include <sdf/Element.hh>
-
 #include <gz/common/Profiler.hh>
+
+#include <sdf/Sensor.hh>
+
 
 #include <gz/sensors/SensorFactory.hh>
 #include <gz/sensors/UwbSensor.hh>
 
-#include "gz/sim/World.hh"
 #include "gz/sim/components/Uwb.hh"
 #include "gz/sim/components/Name.hh"
-#include "gz/sim/components/Pose.hh"
 #include "gz/sim/components/ParentEntity.hh"
+#include "gz/sim/components/Pose.hh"
 #include "gz/sim/components/Sensor.hh"
-#include "gz/sim/components/World.hh"
 #include "gz/sim/EntityComponentManager.hh"
 #include "gz/sim/Util.hh"
+
+// NOTE: not included in AirSpeed.cc. Do I need it? 
+#include "gz/sim/World.hh"
+#include "gz/sim/components/World.hh"
 
 using namespace gz;
 using namespace sim;
