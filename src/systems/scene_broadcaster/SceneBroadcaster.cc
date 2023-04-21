@@ -1028,8 +1028,8 @@ void SceneBroadcasterPrivate::SceneGraphAddEntities(
         if (uwbComp)
         {
           sensorMsg->set_type("uwb");
-          msgs::UWBSensor * uwbMsg = sensorMsg->mutable_uwb();
-          const auto * uwb = uwbComp->Data().UwbSensor();
+          //msgs::UWBSensor * uwbMsg = sensorMsg->mutable_uwb();
+          //const auto * uwb = uwbComp->Data().UwbSensor();
         }
         auto laserRetroComp = _manager.Component<
           components::LaserRetro>(_entity);
