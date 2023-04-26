@@ -59,10 +59,53 @@
         </visual>
       </link>
     </model>
+    
+    <model name="r1rover">
+      <include>
+        <uri>model://r1_rover</uri>
+      </include>
+      <pose>0 0 0 0 0 0</pose>
 
-    <model name="model_with_sensor">
-      <pose>0 0 0.05 0 0 0</pose>
+      <link name="uwb_link">
+        <sensor name="controllee" type="uwb">
+          <pose>0 0 0.5 0 0 0</pose>
+          <always_on>1</always_on>
+          <update_rate>100</update_rate>
+          <visualize>true</visualize>
+          <topic>uwb</topic>
+          <enable_metrics>true</enable_metrics>
+        </sensor>
+      </link>
+
+      <plugin
+        filename="gz-sim-velocity-control-system"
+        name="gz::sim::systems::VelocityControl">
+        <initial_linear>0.2 0 0</initial_linear>
+      </plugin>
+    </model>
+
+    <model name="x500">
+      <include>
+        <uri>model://x500-Base</uri>
+      </include>
+      <pose>0.3 0.5 0.9 0 0 0</pose>
+
+      <link name="uwb_link">
+        <sensor name="controller" type="uwb">
+          <pose>0 0 0.5 0 0 0</pose>
+          <always_on>1</always_on>
+          <update_rate>100</update_rate>
+          <visualize>true</visualize>
+          <topic>uwb</topic>
+          <enable_metrics>true</enable_metrics>
+        </sensor>
+      </link>
+    </model>
+
+    <model name="sensors_box">
+      <pose>4 0 3.0 0 0.0 3.14</pose>
       <link name="link">
+        <pose>0.05 0.05 0.05 0 0 0</pose>
         <inertial>
           <mass>0.1</mass>
           <inertia>
@@ -85,52 +128,18 @@
             </box>
           </geometry>
         </visual>
-        <!-- Here's our custom sensor -->
-        <sensor name="uwb_sensor" type="uwb">
+        <sensor name="uwb" type="uwb">
           <always_on>1</always_on>
-          <update_rate>30</update_rate>
+          <update_rate>100</update_rate>
           <visualize>true</visualize>
-        </sensor>
-      </link>
-
-      <!-- Use the velocity control plugin to give it some initial velocity -->
-      <plugin
-        filename="gz-sim-velocity-control-system"
-        name="gz::sim::systems::VelocityControl">
-        <initial_linear>0.2 0 0</initial_linear>
-      </plugin>
-    </model>
-    
-    <model name="r1rover">
-      <include>
-        <uri>model://r1_rover</uri>
-      </include>
-      <pose>0 0 0 0 0 0</pose>
-
-      <link name="uwb_link">
-        <sensor name="controllee" type="uwb">
-          <pose>0 0 0.5 0 0 0</pose>
-          <always_on>1</always_on>
-          <update_rate>30</update_rate>
-          <visualize>true</visualize>
+          <topic>uwb</topic>
+          <enable_metrics>true</enable_metrics>
         </sensor>
       </link>
     </model>
 
-    <model name="x500">
-      <include>
-        <uri>model://x500-Base</uri>
-      </include>
-      <pose>0.3 0.5 0.9 0 0 0</pose>
 
-      <link name="uwb_link">
-        <sensor name="controller" type="uwb">
-          <pose>0 0 0.5 0 0 0</pose>
-          <always_on>1</always_on>
-          <update_rate>30</update_rate>
-          <visualize>true</visualize>
-        </sensor>
-      </link>
-    </model>
+
+
   </world>
 </sdf>
