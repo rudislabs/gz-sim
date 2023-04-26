@@ -189,7 +189,7 @@ void UwbPrivate::AddSensor(
     gzerr << "World missing gravity." << std::endl;
     return;
   } */
-
+  
   // create sensor
   std::string sensorScopedName =
       removeParentScope(scopedName(_entity, _ecm, "::", false), "::");
@@ -216,21 +216,18 @@ void UwbPrivate::AddSensor(
       _parent->Data())->Data();
   sensor->SetParent(parentName);
 
-  // set gravity - assume it remains fixed
-  // sensor->SetGravity(gravity->Data());
-
   // Get initial pose of sensor and set the reference z pos
   // The WorldPose component was just created and so it's empty
   // We'll compute the world pose manually here
-/*   math::Pose3d p = worldPose(_entity, _ecm);
-  sensor->SetOrientationReference(p.Rot()); */
+  math::Pose3d sensorWorldPose = worldPose(_entity, _ecm);
+  sensor->SetOrientationReference(sensorWorldPose.Rot());
 
   // Get world frame orientation and heading.
   // If <orientation_reference_frame> includes a named
   // frame like NED, that must be supplied to the UWB sensor,
   // otherwise orientations are reported w.r.t to the initial
   // orientation.
-/*   if (data.Element()->HasElement("uwb")) {
+  if (data.Element()->HasElement("uwb")) {
     auto uwbElementPtr = data.Element()->GetElement("uwb");
     if (uwbElementPtr->HasElement("orientation_reference_frame")) {
       double heading = 0.0;
@@ -243,16 +240,9 @@ void UwbPrivate::AddSensor(
       }
 
       sensor->SetWorldFrameOrientation(math::Quaterniond(0, 0, heading),
-        gz::sensors::WorldFrameEnumType::ENU);
+        gz::sensors::WorldFrameEnumType::NED);
     }
-  } */
-
-  // Set whether orientation is enabled
-/*   if (data.UwbSensor())
-  {
-    sensor->SetOrientationEnabled(
-        data.UwbSensor()->OrientationEnabled());
-  } */
+  } 
 
   this->entitySensorMap.insert(
       std::make_pair(_entity, std::move(sensor)));
@@ -314,6 +304,8 @@ void UwbPrivate::Update(const EntityComponentManager &_ecm)
         {
           const auto &uwbWorldPose = _worldPose->Data();
           it->second->SetWorldPose(uwbWorldPose);
+          
+          it->second->SetAzimuth(uwbWorldPose->X());
          }
         else
         {
