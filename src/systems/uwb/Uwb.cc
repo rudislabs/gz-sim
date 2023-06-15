@@ -220,6 +220,7 @@ void UwbPrivate::AddSensor(
   // The WorldPose component was just created and so it's empty
   // We'll compute the world pose manually here
   math::Pose3d sensorWorldPose = worldPose(_entity, _ecm);
+  sensor->SetPose(sensorWorldPose);
   sensor->SetOrientationReference(sensorWorldPose.Rot());
 
   // Get world frame orientation and heading.
@@ -302,11 +303,9 @@ void UwbPrivate::Update(const EntityComponentManager &_ecm)
         auto it = this->entitySensorMap.find(_entity);
         if (it != this->entitySensorMap.end())
         {
-          const auto &uwbWorldPose = _worldPose->Data();
-          it->second->SetWorldPose(uwbWorldPose);
-          
-          it->second->SetAzimuth(uwbWorldPose->X());
-         }
+          const math::Pose3d &worldPose = _worldPose->Data();
+          it->second->SetPose(worldPose);
+        }
         else
         {
           gzerr << "Failed to update UWB: " << _entity << ". "
