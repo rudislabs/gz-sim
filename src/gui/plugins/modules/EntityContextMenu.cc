@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2019 Open Source Robotics Foundation
+ * Copyright (C) 2024 Rudis Laboratories LLC
+ * Copyright (C) 2024 CogniPilot Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +22,7 @@
 
 #include <gz/msgs/boolean.pb.h>
 #include <gz/msgs/stringmsg.pb.h>
+#include <gz/msgs/cameratrack.pb.h>
 #include <gz/msgs/entity.pb.h>
 
 #include <iostream>
@@ -41,8 +44,8 @@ namespace gz::sim
     /// \brief Move to service name
     public: std::string moveToService;
 
-    /// \brief Follow service name
-    public: std::string followService;
+    /// \brief Follow topic name
+    public: std::string followTopic;
 
     /// \brief Remove service name
     public: std::string removeService;
@@ -76,6 +79,9 @@ namespace gz::sim
 
     /// \brief Name of world.
     public: std::string worldName;
+
+    /// \brief follow publisher
+    public: transport::Node::Publisher followPub;
   };
 }
 
@@ -97,8 +103,8 @@ EntityContextMenu::EntityContextMenu()
   // For move to service requests
   this->dataPtr->moveToService = "/gui/move_to";
 
-  // For follow service requests
-  this->dataPtr->followService = "/gui/follow";
+  // For follow topic message
+  this->dataPtr->followTopic = "/gui/track";
 
   // For remove service requests
   this->dataPtr->removeService = "/world/default/remove";
@@ -129,6 +135,9 @@ EntityContextMenu::EntityContextMenu()
 
   // For paste service requests
   this->dataPtr->pasteService = "/gui/paste";
+
+  this->dataPtr->followPub =
+    this->dataPtr->node.Advertise<msgs::CameraTrack>(this->dataPtr->followTopic);
 }
 
 /////////////////////////////////////////////////
@@ -196,9 +205,10 @@ void EntityContextMenu::OnRequest(const QString &_request, const QString &_data)
   }
   else if (request == "follow")
   {
-    msgs::StringMsg req;
-    req.set_data(_data.toStdString());
-    this->dataPtr->node.Request(this->dataPtr->followService, req, cb);
+    msgs::CameraTrack followMsg;
+    followMsg.set_target(_data.toStdString());
+    gzmsg << "Follow target: " << followMsg.target() << std::endl;
+    this->dataPtr->followPub.Publish(followMsg);
   }
   else if (request == "view_transparent")
   {
