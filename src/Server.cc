@@ -17,16 +17,23 @@
 
 #include <numeric>
 
+#ifdef HAVE_PYBIND11
+#include <pybind11/embed.h>
+#endif
+
 #include <gz/common/SystemPaths.hh>
 #include <gz/fuel_tools/Interface.hh>
 #include <gz/fuel_tools/ClientConfig.hh>
 #include <sdf/Root.hh>
 #include <sdf/Error.hh>
+#include <sdf/ParserConfig.hh>
+#include <sdf/Types.hh>
 
 #include "gz/sim/config.hh"
 #include "gz/sim/Server.hh"
 #include "gz/sim/Util.hh"
 
+#include "MeshInertiaCalculator.hh"
 #include "ServerPrivate.hh"
 #include "SimulationRunner.hh"
 
@@ -55,6 +62,24 @@ struct DefaultWorld
 Server::Server(const ServerConfig &_config)
   : dataPtr(new ServerPrivate)
 {
+#ifdef HAVE_PYBIND11
+  if (Py_IsInitialized() == 0)
+  {
+    // We can't used pybind11::scoped_interpreter because:
+    //   1. It gets destructed before plugins are unloaded, which can cause
+    //      segfaults if the plugin tries to run python code, e.g. a message
+    //      that arrives during destruction.
+    //   2. It will prevent instantiation of other Servers. Running python
+    //      systems will not be supported with multiple servers in the same
+    //      process, but we shouldn't break existing behior for non-python use
+    //      cases.
+    // This means, we will not be calling pybind11::finalize_interpreter to
+    // clean up the interpreter. This could cause issues with tests suites that
+    // have multiple tests that load python systems.
+    pybind11::initialize_interpreter();
+  }
+#endif
+
   this->dataPtr->config = _config;
 
   // Configure the fuel client
@@ -95,7 +120,13 @@ Server::Server(const ServerConfig &_config)
         msg += "File path [" + _config.SdfFile() + "].\n";
       }
       gzmsg <<  msg;
-      errors = this->dataPtr->sdfRoot.LoadSdfString(_config.SdfString());
+      sdf::ParserConfig sdfParserConfig = sdf::ParserConfig::GlobalConfig();
+      sdfParserConfig.SetStoreResolvedURIs(true);
+      sdfParserConfig.SetCalculateInertialConfiguration(
+        sdf::ConfigureResolveAutoInertials::SKIP_CALCULATION_IN_LOAD);
+      errors = this->dataPtr->sdfRoot.LoadSdfString(
+        _config.SdfString(), sdfParserConfig);
+      this->dataPtr->sdfRoot.ResolveAutoInertials(errors, sdfParserConfig);
       break;
     }
 
@@ -114,13 +145,21 @@ Server::Server(const ServerConfig &_config)
       gzmsg << "Loading SDF world file[" << filePath << "].\n";
 
       sdf::Root sdfRoot;
+      sdf::ParserConfig sdfParserConfig = sdf::ParserConfig::GlobalConfig();
+      sdfParserConfig.SetStoreResolvedURIs(true);
+      sdfParserConfig.SetCalculateInertialConfiguration(
+        sdf::ConfigureResolveAutoInertials::SKIP_CALCULATION_IN_LOAD);
+
+      MeshInertiaCalculator meshInertiaCalculator;
+      sdfParserConfig.RegisterCustomInertiaCalc(meshInertiaCalculator);
       // \todo(nkoenig) Async resource download.
       // This call can block for a long period of time while
       // resources are downloaded. Blocking here causes the GUI to block with
       // a black screen (search for "Async resource download" in
       // 'src/gui_main.cc'.
-      errors = sdfRoot.Load(filePath);
-      if (errors.empty()) {
+      errors = sdfRoot.Load(filePath, sdfParserConfig);
+      if (errors.empty() || _config.BehaviorOnSdfErrors() !=
+          ServerConfig::SdfErrorBehavior::EXIT_IMMEDIATELY) {
         if (sdfRoot.Model() == nullptr) {
           this->dataPtr->sdfRoot = std::move(sdfRoot);
         }
@@ -128,17 +167,22 @@ Server::Server(const ServerConfig &_config)
         {
           // If the specified file only contains a model, load the default
           // world and add the model to it.
-          errors = this->dataPtr->sdfRoot.LoadSdfString(DefaultWorld::World());
+          errors = this->dataPtr->sdfRoot.LoadSdfString(
+            DefaultWorld::World(), sdfParserConfig);
           sdf::World *world = this->dataPtr->sdfRoot.WorldByIndex(0);
           if (world == nullptr) {
             return;
           }
           world->AddModel(*sdfRoot.Model());
-          if (errors.empty()) {
+          if (errors.empty() || _config.BehaviorOnSdfErrors() !=
+              ServerConfig::SdfErrorBehavior::EXIT_IMMEDIATELY)
+          {
             errors = this->dataPtr->sdfRoot.UpdateGraphs();
           }
         }
       }
+
+      this->dataPtr->sdfRoot.ResolveAutoInertials(errors, sdfParserConfig);
       break;
     }
 
@@ -157,7 +201,11 @@ Server::Server(const ServerConfig &_config)
   {
     for (auto &err : errors)
       gzerr << err << "\n";
-    return;
+    if (_config.BehaviorOnSdfErrors() ==
+        ServerConfig::SdfErrorBehavior::EXIT_IMMEDIATELY)
+    {
+      return;
+    }
   }
 
   // Add record plugin
@@ -314,6 +362,29 @@ std::optional<size_t> Server::SystemCount(const unsigned int _worldIndex) const
 std::optional<bool> Server::AddSystem(const SystemPluginPtr &_system,
                                       const unsigned int _worldIndex)
 {
+  return this->AddSystem(_system, std::nullopt, std::nullopt, _worldIndex);
+}
+
+//////////////////////////////////////////////////
+std::optional<bool> Server::AddSystem(const sdf::Plugin &_plugin,
+                                      std::optional<Entity> _entity,
+                                      const unsigned int _worldIndex)
+{
+  auto system = this->dataPtr->systemLoader->LoadPlugin(_plugin);
+  if (system)
+  {
+    return this->AddSystem(*system, _entity, _plugin.ToElement(), _worldIndex);
+  }
+  return false;
+}
+
+//////////////////////////////////////////////////
+std::optional<bool> Server::AddSystem(
+    const SystemPluginPtr &_system,
+    std::optional<Entity> _entity,
+    std::optional<std::shared_ptr<const sdf::Element>> _sdf,
+    const unsigned int _worldIndex)
+{
   // Check the current state, and return early if preconditions are not met.
   std::lock_guard<std::mutex> lock(this->dataPtr->runMutex);
   // Do not allow running more than once.
@@ -325,7 +396,7 @@ std::optional<bool> Server::AddSystem(const SystemPluginPtr &_system,
 
   if (_worldIndex < this->dataPtr->simRunners.size())
   {
-    this->dataPtr->simRunners[_worldIndex]->AddSystem(_system);
+    this->dataPtr->simRunners[_worldIndex]->AddSystem(_system, _entity, _sdf);
     return true;
   }
 
@@ -336,6 +407,16 @@ std::optional<bool> Server::AddSystem(const SystemPluginPtr &_system,
 std::optional<bool> Server::AddSystem(const std::shared_ptr<System> &_system,
                                       const unsigned int _worldIndex)
 {
+  return this->AddSystem(_system, std::nullopt, std::nullopt, _worldIndex);
+}
+
+//////////////////////////////////////////////////
+std::optional<bool> Server::AddSystem(
+    const std::shared_ptr<System> &_system,
+    std::optional<Entity> _entity,
+    std::optional<std::shared_ptr<const sdf::Element>> _sdf,
+    const unsigned int _worldIndex)
+{
   std::lock_guard<std::mutex> lock(this->dataPtr->runMutex);
   if (this->dataPtr->running)
   {
@@ -345,7 +426,7 @@ std::optional<bool> Server::AddSystem(const std::shared_ptr<System> &_system,
 
   if (_worldIndex < this->dataPtr->simRunners.size())
   {
-    this->dataPtr->simRunners[_worldIndex]->AddSystem(_system);
+    this->dataPtr->simRunners[_worldIndex]->AddSystem(_system, _entity, _sdf);
     return true;
   }
 

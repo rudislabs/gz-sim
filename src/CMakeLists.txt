@@ -1,21 +1,39 @@
 add_subdirectory(rendering)
 add_subdirectory(gui)
 add_subdirectory(systems)
-add_subdirectory(msgs)
 
-set_source_files_properties(
-  ${PROTO_PRIVATE_SRC}
-  ${PROTO_PRIVATE_HEADERS}
-  PROPERTIES GENERATED TRUE
+file(GLOB gz_msgs_proto_files
+  ${CMAKE_CURRENT_SOURCE_DIR}/proto/gz/sim/private_msgs/*.proto
 )
 
-# Suppress compiler warnings in generated protobuf C++ code.
-if(NOT MSVC)
-  set_source_files_properties(
-    ${PROTO_PRIVATE_SRC}
-    COMPILE_FLAGS -Wno-unused-parameter
-  )
-endif()
+get_target_property(msgs_desc_file
+  gz-msgs${GZ_MSGS_VER}::gz-msgs${GZ_MSGS_VER} GZ_MSGS_DESC_FILE)
+
+gz_msgs_generate_messages_impl(
+  MSGS_GEN_SCRIPT
+    ${gz-msgs10_PROTO_GENERATOR_SCRIPT}
+  FACTORY_GEN_SCRIPT
+    ${gz-msgs10_FACTORY_GENERATOR_SCRIPT}
+  GZ_PROTOC_PLUGIN
+    ${gz-msgs10_PROTO_GENERATOR_PLUGIN}
+  INPUT_PROTOS
+    ${gz_msgs_proto_files}
+  PROTO_PACKAGE
+    "gz.sim.private_msgs"
+  PROTO_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto
+  OUTPUT_DIRECTORY
+    ${PROJECT_BINARY_DIR}/gz_msgs_gen
+  OUTPUT_SOURCES
+    msgs_sources
+  OUTPUT_HEADERS
+    msgs_headers
+  OUTPUT_DETAIL_HEADERS
+    msgs_detail_headers
+  OUTPUT_PYTHON
+    msgs_python
+  DEPENDENCY_DESCRIPTIONS ${msgs_desc_file}
+)
 
 set(network_sources
   network/NetworkConfig.cc
@@ -32,10 +50,6 @@ set(comms_sources
   comms/MsgManager.cc
 )
 
-set(component_sources
-  components/Environment.cc
-)
-
 set(gui_sources
   ${gui_sources}
   PARENT_SCOPE
@@ -44,6 +58,11 @@ set(gui_sources
 set(cli_sources
   gz.cc
   cmd/ModelCommandAPI.cc
+)
+
+set(material_sources
+  rendering/MaterialParser/MaterialParser.cc
+  rendering/MaterialParser/ConfigLoader.cc
 )
 
 set (sources
@@ -59,6 +78,7 @@ set (sources
   LevelManager.cc
   Light.cc
   Link.cc
+  MeshInertiaCalculator.cc
   Model.cc
   Primitives.cc
   SdfEntityCreator.cc
@@ -74,10 +94,10 @@ set (sources
   Util.cc
   View.cc
   World.cc
-  ${PROTO_PRIVATE_SRC}
   ${network_sources}
   ${comms_sources}
-  ${component_sources}
+  ${msgs_sources}
+  ${material_sources}
 )
 
 set (gtest_sources
@@ -104,7 +124,6 @@ set (gtest_sources
   SimulationRunner_TEST.cc
   SystemLoader_TEST.cc
   SystemManager_TEST.cc
-  System_TEST.cc
   TestFixture_TEST.cc
   Util_TEST.cc
   World_TEST.cc
@@ -186,13 +205,16 @@ set_property(
   GZ_SIM_PLUGIN_RELATIVE_INSTALL_DIR="${GZ_LIB_INSTALL_DIR}/gz-${GZ_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins"
   GZ_SIM_GUI_PLUGIN_RELATIVE_INSTALL_DIR="${GZ_LIB_INSTALL_DIR}/gz-${GZ_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins/gui"
   GZ_SIM_WORLD_RELATIVE_INSTALL_DIR="${GZ_DATA_INSTALL_DIR}/worlds"
+  GZ_SIM_MEDIA_RELATIVE_INSTALL_DIR="${GZ_DATA_INSTALL_DIR}/media"
 )
+install(FILES "rendering/MaterialParser/gazebo.material" DESTINATION ${GZ_DATA_INSTALL_DIR}/media)
 
 target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME}
   PUBLIC
   gz-math${GZ_MATH_VER}
   gz-plugin${GZ_PLUGIN_VER}::core
   gz-common${GZ_COMMON_VER}::gz-common${GZ_COMMON_VER}
+  gz-common${GZ_COMMON_VER}::graphics
   gz-common${GZ_COMMON_VER}::profiler
   gz-fuel_tools${GZ_FUEL_TOOLS_VER}::gz-fuel_tools${GZ_FUEL_TOOLS_VER}
   gz-gui${GZ_GUI_VER}::gz-gui${GZ_GUI_VER}
@@ -205,6 +227,12 @@ target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME}
   PRIVATE
   gz-plugin${GZ_PLUGIN_VER}::loader
 )
+
+if (pybind11_FOUND)
+  target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME} PRIVATE pybind11::embed)
+  target_compile_definitions(${PROJECT_LIBRARY_TARGET_NAME} PUBLIC -DHAVE_PYBIND11)
+endif()
+
 if (UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_LIBRARY_TARGET_NAME}
     PRIVATE stdc++fs)
@@ -213,14 +241,7 @@ endif()
 target_include_directories(${PROJECT_LIBRARY_TARGET_NAME}
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-)
-
-add_dependencies(${PROJECT_LIBRARY_TARGET_NAME}
-  gz-sim_private_msgs
-)
-
-set(GZ_SIM_PLUGIN_INSTALL_DIR
-  ${CMAKE_INSTALL_PREFIX}/${GZ_LIB_INSTALL_DIR}/gz-${GZ_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins
+  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/gz_msgs_gen>
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/test)

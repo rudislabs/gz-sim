@@ -115,6 +115,17 @@ TEST(CmdLine, CachedFuelWorld)
 }
 
 /////////////////////////////////////////////////
+TEST(CmdLine, GZ_UTILS_TEST_DISABLED_ON_WIN32(RandomSeedValue))
+{
+  std::string cmd = kGzCommand + " -r -v 4 --seed 5 --iterations 5";
+  std::cout << "Running command [" << cmd << "]" << std::endl;
+
+  std::string output = customExecStr(cmd);
+  EXPECT_NE(output.find("Setting seed value"), std::string::npos)
+      << output;
+}
+
+/////////////////////////////////////////////////
 TEST(CmdLine, GazeboServer)
 {
   std::string cmd = kGzCommand + " -r -v 4 --iterations 5 " +
@@ -200,8 +211,14 @@ TEST(CmdLine, GZ_UTILS_TEST_DISABLED_ON_WIN32(ResourcePath))
 
   // Correct path
   auto path = std::string("GZ_SIM_RESOURCE_PATH=") +
-    PROJECT_SOURCE_PATH + "/test/worlds ";
+              gz::common::joinPaths(PROJECT_SOURCE_PATH, "test", "worlds ");
 
+  output = customExecStr(path + cmd);
+  EXPECT_EQ(output.find("Unable to find file plugins.sdf"), std::string::npos)
+      << output;
+
+  path = std::string("GZ_SIM_RESOURCE_PATH=") +
+         gz::common::joinPaths(PROJECT_SOURCE_PATH, "test", "worlds ");
   output = customExecStr(path + cmd);
   EXPECT_EQ(output.find("Unable to find file plugins.sdf"), std::string::npos)
       << output;
@@ -213,6 +230,22 @@ TEST(CmdLine, GZ_UTILS_TEST_DISABLED_ON_WIN32(ResourcePath))
   output = customExecStr(path + cmd);
   EXPECT_EQ(output.find("Unable to find file plugins.sdf"), std::string::npos)
       << output;
+
+  // Test nested models
+  // Use a direct path to the input file. Using a file name that has to be
+  // resolved interacts with how resource environment variables are processed
+  // and so will have different behavior than when a direct path is provided.
+  cmd = kGzCommand + " -s -r -v 4 --iterations 1 " +
+        gz::common::joinPaths(PROJECT_SOURCE_PATH, "test", "worlds",
+                              "include_nested_models.sdf");
+  output = customExecStr(cmd);
+  EXPECT_NE(output.find("Unable to find"), std::string::npos) << output;
+
+  std::string pathValue =
+      gz::common::joinPaths(PROJECT_SOURCE_PATH, "test", "worlds", "models");
+
+  output = customExecStr("GZ_SIM_RESOURCE_PATH=" + pathValue + " " + cmd);
+  EXPECT_EQ(output.find("Unable to find"), std::string::npos) << output;
 }
 
 //////////////////////////////////////////////////
